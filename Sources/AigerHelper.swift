@@ -82,11 +82,7 @@ func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer
     }
     abcCommand += " write \(outputPath);"
     
-    #if os(Linux)
-        let task = Task()
-    #else
-        let task = Process()
-    #endif
+    let task = Process()
     task.launchPath = "./Tools/abc"
     task.arguments = ["-q", abcCommand]
     task.standardOutput = FileHandle.standardError
