@@ -6,16 +6,15 @@ debug: tools
 	swift build
 
 release: tools
-	swift build --configuration release
+	swift build --configuration release -Xcc -O3 -Xcc -DNDEBUG -Xswiftc -Ounchecked
 
 test:
 	swift test
 
 clean:
-	swift build --clean
+	swift package clean
 
-distclean:
-	swift build --clean=dist
+distclean: clean
 	rm -rf Tools
 
 tools: Tools/abc
