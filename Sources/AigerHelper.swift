@@ -68,7 +68,9 @@ func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer
     let inputPath = inputFileURL.path
     let outputPath = outputFileURL.path
     
-    aiger_open_and_write_to_file(aig, inputPath)
+    if aiger_open_and_write_to_file(aig, inputPath) == 0 {
+        return nil
+    }
     
     var abcCommand = "read \(inputPath); strash; refactor -zl; rewrite -zl;"
     if aig.pointee.num_ands < 1000000 {
@@ -90,7 +92,9 @@ func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer
     task.waitUntilExit()
     assert(task.terminationStatus == 0)
     
-    aiger_open_and_read_from_file(minimized, outputPath)
+    if aiger_open_and_read_from_file(minimized, outputPath) != nil {
+        return nil
+    }
     
     defer {
         do {

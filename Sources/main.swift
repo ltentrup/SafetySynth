@@ -55,6 +55,7 @@ if !synthesize {
 
 let rawStrategy = solver.synthesize(winningRegion: solution)
 guard let minimizedStrategy = minimizeWithABC(rawStrategy) else {
+    print("minimizing strategy failed")
     exit(1)
 }
 

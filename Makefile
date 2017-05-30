@@ -14,7 +14,8 @@ test:
 clean:
 	swift package clean
 
-distclean: clean
+distclean:
+	swift package reset
 	rm -rf Tools
 
 tools: Tools/abc
