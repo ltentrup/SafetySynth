@@ -57,7 +57,7 @@ func aiger_copy(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer<aige
     return copy
 }
 
-func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer<aiger>? {
+public func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer<aiger>? {
     let minimized = aiger_init()
     
     let inputFileName: String = ProcessInfo.processInfo.globallyUniqueString + ".aig"

@@ -4,13 +4,13 @@ import Aiger
 
 typealias AigerLit = UInt32
 
-struct SafetyGame {
+public struct SafetyGame {
     let representation: Aiger
     let controllableLits: [AigerLit]
     let uncontrollableLits: [AigerLit]
     let latchLits: [AigerLit]
     
-    init(from: Aiger) {
+    public init(from: Aiger) {
         self.representation = from
         
         var controllableLits: [AigerLit] = []
@@ -31,7 +31,7 @@ struct SafetyGame {
         self.latchLits = from.latches.map({ $0.lit })
     }
     
-    func combine(implementation: Aiger) -> UnsafeMutablePointer<aiger>? {
+    public func combine(implementation: Aiger) -> UnsafeMutablePointer<aiger>? {
         let combined_ = aiger_init()
         guard let combined = combined_ else {
             return nil

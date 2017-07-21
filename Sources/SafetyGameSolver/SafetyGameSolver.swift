@@ -4,7 +4,7 @@ import Aiger
 import CUDD
 
 
-class SafetyGameSolver {
+public class SafetyGameSolver {
     let instance: SafetyGame
     
     let manager: CUDDManager
@@ -20,7 +20,7 @@ class SafetyGameSolver {
     var exiscube: CUDDNode
     var univcube: CUDDNode
     
-    init(instance: SafetyGame) {
+    public init(instance: SafetyGame) {
         self.instance = instance
         
         let copy = aiger_copy(self.instance.representation.aiger)!
@@ -116,7 +116,7 @@ class SafetyGameSolver {
             .UnivAbstract(cube: univcube)
     }
     
-    func solve() -> CUDDNode? {
+    public func solve() -> CUDDNode? {
         var fixpoint = manager.zero()
         var safeStates = manager.one()
         
@@ -134,7 +134,7 @@ class SafetyGameSolver {
         return fixpoint
     }
     
-    func synthesize(winningRegion: CUDDNode) -> UnsafeMutablePointer<aiger> {
+    public func synthesize(winningRegion: CUDDNode) -> UnsafeMutablePointer<aiger> {
         
         let strategies: [CUDDNode] = getStrategiesFrom(winningRegion: winningRegion)
         
@@ -237,7 +237,7 @@ class SafetyGameSolver {
         return negated ? aiger_not(iteLit) : iteLit
     }
     
-    func printWinningRegion(winningRegion: CUDDNode) {
+    public func printWinningRegion(winningRegion: CUDDNode) {
         // print winning region as AIGER circuit:
         // latches are inputs and it has exactly one output that is one iff states are in winning region
         guard let winningRegionCircuit = aiger_init() else {
