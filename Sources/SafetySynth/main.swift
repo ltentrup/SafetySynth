@@ -41,7 +41,10 @@ if result != nil {
     exit(1)
 }
 
-let safetyGame = SafetyGame(from: Aiger(from: specificationPointer))
+let manager: CUDDManager = CUDDManager()
+manager.AutodynEnable(reorderingAlgorithm: reorderingAlgorithm)
+
+let safetyGame = AigerSafetyGame(using: manager, from: Aiger(from: specificationPointer))
 let solver = SafetyGameSolver(instance: safetyGame)
 
 guard let solution = solver.solve() else {

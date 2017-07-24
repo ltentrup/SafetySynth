@@ -6,103 +6,20 @@ import CUDD
 
 public class SafetyGameSolver {
     let instance: SafetyGame
-    
     let manager: CUDDManager
-    var cache: [AigerLit:CUDDNode]
     
-    let controllables: [CUDDNode]
-    let uncontrollables: [CUDDNode]
-    let latches: [CUDDNode]
-    var compose: [CUDDNode]
-    
-    var initial: CUDDNode
-    var output: CUDDNode
     var exiscube: CUDDNode
     var univcube: CUDDNode
     
     public init(instance: SafetyGame) {
         self.instance = instance
+        self.manager = instance.manager
         
-        let copy = aiger_copy(self.instance.representation.aiger)!
-        aiger_reencode(copy)
-        let copyOverlay = Aiger(from: copy, resetOnDealloc: true)
-        
-        manager = CUDDManager()
-        manager.AutodynEnable(reorderingAlgorithm: .GroupSift)
-        cache = [0:manager.zero()]
-        
-        var controllables: [CUDDNode] = []
-        var uncontrollables: [CUDDNode] = []
-        var latches: [CUDDNode] = []
-        self.compose = []
-        
-        for symbol in copyOverlay.inputs {
-            let node = manager.newVar()
-            cache[symbol.lit] = node
-            let name: String = String(cString: symbol.name)
-            if name.hasPrefix("controllable_") {
-                controllables.append(node)
-            } else {
-                uncontrollables.append(node)
-            }
-            compose.append(node)
-            node.setPrimaryInput()
-        }
-        
-        assert(controllables.count == instance.controllableLits.count)
-        assert(uncontrollables.count == instance.uncontrollableLits.count)
-        
-        for symbol in copyOverlay.latches {
-            let node = manager.newVar()
-            node.setPresentState()
-            cache[symbol.lit] = node
-            latches.append(node)
-        }
-        
-        assert(latches.count == instance.latchLits.count)
-        
-        self.controllables = controllables
-        self.uncontrollables = uncontrollables
-        self.latches = latches
-        self.initial = manager.one()
-        self.output = manager.one()
         self.exiscube = manager.one()
         self.univcube = manager.one()
         
-        var andPtr = copy.pointee.ands
-        for _ in 0..<copy.pointee.num_ands {
-            let and = andPtr!.pointee
-            andPtr = andPtr?.successor()
-            cache[and.lhs] = lookupLiteral(node: and.rhs0) & lookupLiteral(node: and.rhs1)
-        }
-        
-        for latch in latches {
-            initial &= !latch
-        }
-        
-        for symbol in copyOverlay.latches {
-            let function = lookupLiteral(node: symbol.next)
-            compose.append(function)
-        }
-        
-        for symbol in copyOverlay.outputs {
-            output &= !lookupLiteral(node: symbol.lit)
-        }
-        
-        // reset cache (dereferences contained BDDs)
-        cache = [:]
-        
-        exiscube = controllables.reduce(manager.one(), { f, node in f & node })
-        univcube = uncontrollables.reduce(manager.one(), { f, node in f & node })
-    }
-    
-    func lookupLiteral(node: AigerLit) -> CUDDNode {
-        let (negated, normalizedNode) = aiger_normalize(node)
-        guard let bddNode = cache[normalizedNode] else {
-            print("error: lookup of \(node) failed")
-            exit(1)
-        }
-        return negated ? !bddNode : bddNode
+        exiscube = instance.controllables.reduce(manager.one(), { f, node in f & node })
+        univcube = instance.uncontrollables.reduce(manager.one(), { f, node in f & node })
     }
     
     func getStates(function: CUDDNode) -> CUDDNode {
@@ -111,8 +28,8 @@ public class SafetyGameSolver {
     }
     
     func preSystem(states: CUDDNode) -> CUDDNode {
-        return states.compose(vector: compose)
-            .AndAbstract(with: output, cube: exiscube)
+        return states.compose(vector: instance.compose)
+            .AndAbstract(with: instance.output, cube: exiscube)
             .UnivAbstract(cube: univcube)
     }
     
@@ -126,7 +43,7 @@ public class SafetyGameSolver {
             //print("Round \(rounds)")
             fixpoint = safeStates.copy()
             safeStates &= preSystem(states: safeStates)
-            if !(initial <= safeStates) {
+            if !(instance.initial <= safeStates) {
                 // unrealizable
                 return nil
             }
@@ -151,21 +68,21 @@ public class SafetyGameSolver {
         var nodeIndexToAig: [Int:AigerLit] = [:]
         var bddToAig: [CUDDNode:AigerLit] = [manager.one():1]
         
-        for (uncontrollable, origLit) in zip(uncontrollables, instance.uncontrollableLits) {
+        for (uncontrollable, origLit) in zip(instance.uncontrollables, instance.uncontrollableNames) {
             let lit = aiger_next_lit(synthesized)
             aiger_add_input(synthesized, lit, String(origLit))
             bddToAig[uncontrollable] = lit
             nodeIndexToAig[uncontrollable.index()] = lit
         }
         
-        for (latch, origLit) in zip(latches, instance.latchLits) {
+        for (latch, origLit) in zip(instance.latches, instance.latchNames) {
             let lit = aiger_next_lit(synthesized)
             aiger_add_input(synthesized, lit, String(origLit))
             bddToAig[latch] = lit
             nodeIndexToAig[latch.index()] = lit
         }
         
-        for (strategy, origLit) in zip(strategies, instance.controllableLits) {
+        for (strategy, origLit) in zip(strategies, instance.controllableNames) {
             aiger_add_output(synthesized, translateBddToAig(synthesized, cache: &bddToAig, nodeTransform: nodeIndexToAig, node: strategy), String(origLit))
         }
         
@@ -178,11 +95,11 @@ public class SafetyGameSolver {
     func getStrategiesFrom(winningRegion: CUDDNode) -> [CUDDNode] {
         // ∀ x,i ∃ o (safe ∧ winning')
         let careSet = winningRegion.copy()
-        var nondeterministicStrategy = winningRegion.compose(vector: compose) & output
+        var nondeterministicStrategy = winningRegion.compose(vector: instance.compose) & instance.output
         var strategies: [CUDDNode] = []
-        for controllable in controllables {
+        for controllable in instance.controllables {
             var winningControllable = nondeterministicStrategy.copy()
-            let otherControllables = controllables.filter({ c in c != controllable})
+            let otherControllables = instance.controllables.filter({ c in c != controllable})
             if otherControllables.count > 0 {
                 winningControllable = winningControllable.ExistAbstract(cube: otherControllables.reduce(manager.one(), { f, node in f & node }))
             }
@@ -249,7 +166,7 @@ public class SafetyGameSolver {
         var nodeIndexToAig: [Int:AigerLit] = [:]
         var bddToAig: [CUDDNode:AigerLit] = [manager.one():1]
         
-        for latch in latches {
+        for latch in instance.latches {
             let lit = aiger_next_lit(winningRegionCircuit)
             aiger_add_input(winningRegionCircuit, lit, nil)
             bddToAig[latch] = lit
