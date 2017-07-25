@@ -10,7 +10,11 @@ public protocol SafetyGame {
     var latches: [CUDDNode] { get }
     var compose: [CUDDNode] { get }
     var initial: CUDDNode { get }
-    var output: CUDDNode { get }
+    
+    /**
+     * The output is 1 iff the safety condition is satisfied
+     */
+    var safetyCondition: CUDDNode { get }
     
     var controllableNames: [String] { get }
     var uncontrollableNames: [String] { get }
@@ -28,7 +32,7 @@ public struct AigerSafetyGame: SafetyGame {
     
     public var compose: [CUDDNode]
     public var initial: CUDDNode
-    public var output: CUDDNode
+    public var safetyCondition: CUDDNode
     
     let representation: Aiger
     
@@ -96,7 +100,7 @@ public struct AigerSafetyGame: SafetyGame {
         self.uncontrollables = uncontrollables
         self.latches = latches
         self.initial = manager.one()
-        self.output = manager.one()
+        self.safetyCondition = manager.one()
         
         assert(latches.count == latchNames.count)
         
@@ -126,7 +130,7 @@ public struct AigerSafetyGame: SafetyGame {
         }
         
         for symbol in copyOverlay.outputs {
-            output &= !lookupLiteral(node: symbol.lit)
+            safetyCondition &= !lookupLiteral(node: symbol.lit)
         }
     }
     

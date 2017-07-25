@@ -7,13 +7,15 @@ import CUDD
 public class SafetyGameSolver {
     let instance: SafetyGame
     let manager: CUDDManager
+    let mealy: Bool
     
     var exiscube: CUDDNode
     var univcube: CUDDNode
     
-    public init(instance: SafetyGame) {
+    public init(instance: SafetyGame, mealy: Bool = true) {
         self.instance = instance
         self.manager = instance.manager
+        self.mealy = mealy
         
         self.exiscube = manager.one()
         self.univcube = manager.one()
@@ -22,15 +24,16 @@ public class SafetyGameSolver {
         univcube = instance.uncontrollables.reduce(manager.one(), { f, node in f & node })
     }
     
-    func getStates(function: CUDDNode) -> CUDDNode {
-        let abstracted = function.ExistAbstract(cube: exiscube)
-        return abstracted.UnivAbstract(cube: univcube)
-    }
-    
     func preSystem(states: CUDDNode) -> CUDDNode {
-        return states.compose(vector: instance.compose)
-            .AndAbstract(with: instance.output, cube: exiscube)
-            .UnivAbstract(cube: univcube)
+        if mealy {
+            return states.compose(vector: instance.compose)
+                         .AndAbstract(with: instance.safetyCondition, cube: exiscube)
+                         .UnivAbstract(cube: univcube)
+        } else {
+            return (states.compose(vector: instance.compose) & instance.safetyCondition)
+                   .UnivAbstract(cube: univcube)
+                   .ExistAbstract(cube: exiscube)
+        }
     }
     
     public func solve() -> CUDDNode? {
@@ -95,7 +98,7 @@ public class SafetyGameSolver {
     func getStrategiesFrom(winningRegion: CUDDNode) -> [CUDDNode] {
         // ∀ x,i ∃ o (safe ∧ winning')
         let careSet = winningRegion.copy()
-        var nondeterministicStrategy = winningRegion.compose(vector: instance.compose) & instance.output
+        var nondeterministicStrategy = winningRegion.compose(vector: instance.compose) & instance.safetyCondition
         var strategies: [CUDDNode] = []
         for controllable in instance.controllables {
             var winningControllable = nondeterministicStrategy.copy()
@@ -176,3 +179,4 @@ public class SafetyGameSolver {
         aiger_write_to_file(winningRegionCircuit, aiger_ascii_mode, stdout)
     }
 }
+
