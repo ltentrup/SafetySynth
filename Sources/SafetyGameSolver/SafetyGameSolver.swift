@@ -63,39 +63,26 @@ public class SafetyGameSolver {
         // inputs: previous uncontrollable inputs and latches
         // outputs: previous controllable inputs
         // the uncontrollable inputs, latches, and controllable inputs are defined in the original order to faciliate matching afterwards
-        guard let synthesized = aiger_init() else {
-            exit(1)
-        }
-        
-        // make sure that it only contains non-negated nodes
-        var nodeIndexToAig: [Int:AigerLit] = [:]
-        var bddToAig: [CUDDNode:AigerLit] = [manager.one():1]
+        let aigerEncoder = BDD2AigerEncoder(manager: manager)
         
         for (uncontrollable, origLit) in zip(instance.uncontrollables, instance.uncontrollableNames) {
-            let lit = aiger_next_lit(synthesized)
-            aiger_add_input(synthesized, lit, String(origLit))
-            bddToAig[uncontrollable] = lit
-            nodeIndexToAig[uncontrollable.index()] = lit
+            aigerEncoder.addInput(node: uncontrollable, name: String(origLit))
         }
         
         for (latch, origLit) in zip(instance.latches, instance.latchNames) {
-            let lit = aiger_next_lit(synthesized)
-            aiger_add_input(synthesized, lit, String(origLit))
-            bddToAig[latch] = lit
-            nodeIndexToAig[latch.index()] = lit
+            aigerEncoder.addInput(node: latch, name: String(origLit))
         }
         
         for (strategy, origLit) in zip(strategies, instance.controllableNames) {
-            aiger_add_output(synthesized, translateBddToAig(synthesized, cache: &bddToAig, nodeTransform: nodeIndexToAig, node: strategy), String(origLit))
+            aigerEncoder.addOutput(node: strategy, name: String(origLit))
         }
         
-        aiger_reencode(synthesized)
         //aiger_write_to_file(synthesized, aiger_ascii_mode, stdout)
         
-        return synthesized
+        return aigerEncoder.aiger
     }
     
-    func getStrategiesFrom(winningRegion: CUDDNode) -> [CUDDNode] {
+    public func getStrategiesFrom(winningRegion: CUDDNode) -> [CUDDNode] {
         // ∀ x,i ∃ o (safe ∧ winning')
         let careSet = winningRegion.copy()
         var nondeterministicStrategy = winningRegion.compose(vector: instance.compose) & instance.safetyCondition
@@ -126,25 +113,95 @@ public class SafetyGameSolver {
         }
         return strategies
     }
+
+    public func printWinningRegion(winningRegion: CUDDNode) {
+        // print winning region as AIGER circuit:
+        // latches are inputs and it has exactly one output that is one iff states are in winning region
+        print("\nWINNING_REGION")
+        
+        let aigerEncoder = BDD2AigerEncoder(manager: manager)
+        
+        for latch in instance.latches {
+            aigerEncoder.addInput(node: latch, name: "")
+        }
+        aigerEncoder.addOutput(node: winningRegion, name: "winning region")
+
+        let winningRegionCircuit = aigerEncoder.aiger
+        aiger_write_to_file(winningRegionCircuit, aiger_ascii_mode, stdout)
+    }
+}
+
+public class BDD2AigerEncoder {
+    let manager: CUDDManager
+    
+    var nodeIndexToAig: [Int:AigerLit]
+    var bddToAig: [CUDDNode:AigerLit]
+    
+    let aig: UnsafeMutablePointer<aiger>
+    
+    public var aiger: UnsafeMutablePointer<aiger> {
+        aiger_reencode(aig)
+        return aig
+    }
+    
+    public init(manager: CUDDManager) {
+        self.manager = manager
+        
+        self.nodeIndexToAig = [:]
+        self.bddToAig = [manager.one():1]
+        
+        guard let aiger = aiger_init() else {
+            fatalError()
+        }
+        self.aig = aiger
+    }
+    
+    public func addInput(node: CUDDNode, name: String) {
+        let lit = aiger_next_lit(aig)
+        aiger_add_input(aig, lit, name)
+        bddToAig[node] = lit
+        nodeIndexToAig[node.index()] = lit
+    }
+    
+    public func addLatchVariable(node: CUDDNode) {
+        let lit = aiger_next_lit(aig)
+        aiger_add_latch(aig, lit, 0, nil)
+        bddToAig[node] = lit
+        nodeIndexToAig[node.index()] = lit
+    }
+    
+    public func defineLatch(node: CUDDNode, nextNode: CUDDNode) {
+        guard let lit = nodeIndexToAig[node.index()] else {
+            fatalError()
+        }
+        guard let symbol = aiger_is_latch(aig, lit) else {
+            fatalError()
+        }
+        symbol.pointee.next = translateBddToAig(node: nextNode)
+    }
+    
+    public func addOutput(node: CUDDNode, name: String) {
+        aiger_add_output(aig, translateBddToAig(node: node), name)
+    }
     
     func normalizeBddNode(_ node: CUDDNode) -> (Bool, CUDDNode) {
         return node.isComplement() ? (true, !node) : (false, node)
     }
     
-    func translateBddToAig(_ aig: UnsafeMutablePointer<aiger>, cache: inout [CUDDNode:UInt32], nodeTransform: [Int:UInt32], node: CUDDNode) -> UInt32 {
+    func translateBddToAig(node: CUDDNode) -> UInt32 {
         let (negated, node) = normalizeBddNode(node)
         assert(!node.isComplement())
-        if let lookup = cache[node] {
+        if let lookup = bddToAig[node] {
             return negated ? aiger_not(lookup) : lookup
         }
         assert(node != manager.one())
         
-        guard let nodeLit = nodeTransform[node.index()] else {
-            exit(1)
+        guard let nodeLit = nodeIndexToAig[node.index()] else {
+            fatalError()
         }
         
-        let thenLit = translateBddToAig(aig, cache: &cache, nodeTransform: nodeTransform, node: node.thenChild())
-        let elseLit = translateBddToAig(aig, cache: &cache, nodeTransform: nodeTransform, node: node.elseChild())
+        let thenLit = translateBddToAig(node: node.thenChild())
+        let elseLit = translateBddToAig(node: node.elseChild())
         
         // ite(node, then_child, else_child)
         // = node*then_child + !node*else_child
@@ -153,30 +210,8 @@ public class SafetyGameSolver {
         let leftAnd = aiger_create_and(aig, lhs: nodeLit, rhs: thenLit)
         let rightAnd = aiger_create_and(aig, lhs: aiger_not(nodeLit), rhs: elseLit)
         let iteLit = aiger_not(aiger_create_and(aig, lhs: aiger_not(leftAnd), rhs: aiger_not(rightAnd)))
-        cache[node] = iteLit
+        bddToAig[node] = iteLit
         return negated ? aiger_not(iteLit) : iteLit
-    }
-    
-    public func printWinningRegion(winningRegion: CUDDNode) {
-        // print winning region as AIGER circuit:
-        // latches are inputs and it has exactly one output that is one iff states are in winning region
-        guard let winningRegionCircuit = aiger_init() else {
-            exit(1)
-        }
-        print("\nWINNING_REGION")
-        
-        // make sure that it only contains non-negated nodes
-        var nodeIndexToAig: [Int:AigerLit] = [:]
-        var bddToAig: [CUDDNode:AigerLit] = [manager.one():1]
-        
-        for latch in instance.latches {
-            let lit = aiger_next_lit(winningRegionCircuit)
-            aiger_add_input(winningRegionCircuit, lit, nil)
-            bddToAig[latch] = lit
-            nodeIndexToAig[latch.index()] = lit
-        }
-        aiger_add_output(winningRegionCircuit, translateBddToAig(winningRegionCircuit, cache: &bddToAig, nodeTransform: nodeIndexToAig, node: winningRegion), "winning region")
-        aiger_write_to_file(winningRegionCircuit, aiger_ascii_mode, stdout)
     }
 }
 
