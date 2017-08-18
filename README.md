@@ -56,7 +56,7 @@ module counter(increase, controllable_reset, err);
                 state = 2;
         2 : if (!increase && !controllable_reset)
                 state = 2;
-            else if (increase && !contollable_reset)
+            else if (increase && !controllable_reset)
                 state = 3;
             else
                 state = 0;
