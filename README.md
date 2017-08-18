@@ -26,7 +26,7 @@ Instead of generating AIGER files directly, one can describe the game as a Veril
 ### Example 
 
 Consider the following example game, played on a 2-bit state space representing a binary counter.
-The input player can `increase` the counter, while the output player can `reset` the counte to zero once the value `2` is reached.
+The input player can `increase` the counter, while the output player can `reset` the counter to zero once the value `2` is reached.
 The output player should avoid the value `3`.
 
 ```verilog
