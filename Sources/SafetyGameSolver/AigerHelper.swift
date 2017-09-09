@@ -36,6 +36,7 @@ func aiger_copy(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutablePointer<aige
         let symbol = symbolPtr!.pointee
         symbolPtr = symbolPtr?.successor()
         aiger_add_latch(copy, symbol.lit, symbol.next, symbol.name)
+        aiger_add_reset(copy, symbol.lit, symbol.reset)
     }
     
     // outputs

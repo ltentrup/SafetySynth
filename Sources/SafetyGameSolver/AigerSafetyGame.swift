@@ -120,8 +120,14 @@ public struct AigerSafetyGame: SafetyGame {
             cache[and.lhs] = lookupLiteral(node: and.rhs0) & lookupLiteral(node: and.rhs1)
         }
         
-        for latch in latches {
-            initial &= !latch
+        for (node, latch) in zip(latches, copyOverlay.latches) {
+            if latch.reset == 0 {
+                initial &= !node
+            } else if latch.reset == 1 {
+                initial &= node
+            } else {
+                fatalError("error in AIGER input: only 0 and 1 is allowed for initial latch values")
+            }
         }
         
         for symbol in copyOverlay.latches {
