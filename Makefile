@@ -32,5 +32,5 @@ Tools/abc-hg/abc: Tools/abc-hg
 	make -C Tools/abc-hg
 
 Tools/abc-hg: Tools/.f
-	cd Tools ; hg clone https://bitbucket.org/alanmi/abc abc-hg
+	cd Tools ; git clone https://github.com/berkeley-abc/abc.git abc-hg
 
