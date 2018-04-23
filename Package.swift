@@ -1,14 +1,19 @@
+// swift-tools-version:4.0
 import PackageDescription
 
 let package = Package(
     name: "SafetySynth",
-    targets: [
-        Target(name: "SafetySynth", dependencies: ["SafetyGameSolver"]),
-        Target(name: "SafetyGameSolver"),
-    ],
+    products: [
+        .executable(name: "SafetySynth", targets: ["SafetySynth"]),
+        .library(name: "SafetyGameSolver", targets: ["SafetyGameSolver"])
+        ],
     dependencies: [
-        .Package(url: "https://github.com/ltentrup/CAiger.git", majorVersion: 0, minor: 1),
-        .Package(url: "https://github.com/ltentrup/Aiger.git", majorVersion: 0, minor: 2),
-        .Package(url: "https://github.com/ltentrup/CUDD.git", majorVersion: 0, minor: 2),
-    ]
+        .package(url: "https://github.com/ltentrup/CAiger.git", from: "0.1.0"),
+        .package(url: "https://github.com/ltentrup/Aiger.git", from: "0.2.0"),
+        .package(url: "https://github.com/ltentrup/CUDD.git", from: "0.2.0"),
+        ],
+    targets: [
+        .target(name: "SafetySynth", dependencies: ["SafetyGameSolver"]),
+        .target(name: "SafetyGameSolver", dependencies: ["CAiger", "CUDD", "Aiger"]),
+        ]
 )
