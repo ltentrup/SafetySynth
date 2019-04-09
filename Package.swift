@@ -14,6 +14,6 @@ let package = Package(
         ],
     targets: [
         .target(name: "SafetySynth", dependencies: ["SafetyGameSolver"]),
-        .target(name: "SafetyGameSolver", dependencies: ["CAiger", "CUDD", "Aiger"]),
+        .target(name: "SafetyGameSolver", dependencies: ["CAiger", "CAigerHelper", "CUDD", "Aiger"]),
         ]
 )
