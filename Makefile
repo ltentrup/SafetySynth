@@ -25,12 +25,12 @@ Tools/.f:
 	touch Tools/.f
 
 # abc
-Tools/abc: Tools/abc-hg/abc
-	cp Tools/abc-hg/abc Tools/abc
+Tools/abc: Tools/abc-build
+	cd Tools ; mv abc build-abc ; cp build-abc/abc .
 
-Tools/abc-hg/abc: Tools/abc-hg
-	make -C Tools/abc-hg
+Tools/abc-build: Tools/abc-git
+	make -C Tools/abc
 
-Tools/abc-hg: Tools/.f
-	cd Tools ; hg clone https://bitbucket.org/alanmi/abc abc-hg
+Tools/abc-git: Tools/.f
+	cd Tools ; git clone https://github.com/berkeley-abc/abc 
 
