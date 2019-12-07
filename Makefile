@@ -8,6 +8,9 @@ debug: tools
 release: tools
 	swift build --configuration release -Xcc -O3 -Xcc -DNDEBUG -Xswiftc -Ounchecked
 
+releaseNoTools:
+	swift build --configuration release -Xcc -O3 -Xcc -DNDEBUG -Xswiftc -Ounchecked
+
 test:
 	swift test
 
