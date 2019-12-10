@@ -8,9 +8,6 @@ debug: tools
 release: tools
 	swift build --configuration release -Xcc -O3 -Xcc -DNDEBUG -Xswiftc -Ounchecked
 
-releaseNoTools:
-	swift build --configuration release -Xcc -O3 -Xcc -DNDEBUG -Xswiftc -Ounchecked
-
 test:
 	swift test
 
@@ -28,12 +25,12 @@ Tools/.f:
 	touch Tools/.f
 
 # abc
-Tools/abc: Tools/abc-build
-	cd Tools ; mv abc build-abc ; cp build-abc/abc .
+Tools/abc: Tools/abc-git/abc
+	cd Tools ;  cp abc-git/abc .
 
-Tools/abc-build: Tools/abc-git
-	make -C Tools/abc
+Tools/abc-git/abc: Tools/abc-git
+	make -C Tools/abc-git
 
 Tools/abc-git: Tools/.f
-	cd Tools ; git clone https://github.com/berkeley-abc/abc 
+	cd Tools ; git clone https://github.com/berkeley-abc/abc abc-git
 

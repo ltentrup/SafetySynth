@@ -15,8 +15,8 @@ It follows the rules of the [Reactive Synthesis Competition](http://www.syntcomp
 
 * Requires Swift (version 3.1)
 * `make release` builds dependencies and the binary
-* `cp Tools/abc /usr/local/bin`
 * `.build/release/SafetySynth [--synthesize] instance.aag`
+
 
 ## How to Generate AIGER Synthesis Files
 

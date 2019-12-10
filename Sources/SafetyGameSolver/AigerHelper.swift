@@ -85,10 +85,16 @@ public func minimizeWithABC(_ aig: UnsafeMutablePointer<aiger>) -> UnsafeMutable
     }
     abcCommand += " write \(outputPath);"
   
-    // Execute command "abc -q abcCommand" in bash 
+    // Execute command "abc -q abcCommand"
     let task = Process()
-    task.launchPath = "/bin/bash"
-    task.arguments = ["-c", "abc -q \"" + abcCommand + "\""]
+    // determine `abc` binary, either local or system
+    var env = ProcessInfo.processInfo.environment
+    var path = env["PATH"]! as String
+    path = "./Tools/:" + path
+    env["PATH"] = path
+    task.environment = env
+    task.launchPath = "/usr/bin/env"
+    task.arguments = ["abc", "-q", abcCommand]
     task.standardOutput = FileHandle.standardError
     task.launch()
     task.waitUntilExit()
